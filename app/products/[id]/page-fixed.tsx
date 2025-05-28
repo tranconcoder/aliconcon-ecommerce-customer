@@ -6,9 +6,78 @@ import NextImage from 'next/image'; // Aliased to avoid conflict if any
 import Link from 'next/link';
 import { ChevronLeft, ShoppingCart, Zap, Star, Package, AlertTriangle, Info, Tag, LayoutGrid, Heart, Palette, FolderOpen, MessageSquare, ThumbsUp, User, Calendar, ZoomIn, ZoomOut, X, ChevronRight, ChevronLeft as ChevronLeftIcon, Maximize2 } from 'lucide-react';
 
-import productService, { ProductDetailResponse, ProductSku, ProductAttribute, ProductVariation, SpuSelect, SkuOther } from '@/lib/services/api/productService';
-import { Category } from '@/lib/services/api/categoryService';
-import shopService, { Shop } from '@/lib/services/api/shopService';
+import productService, { ProductSkuDetail, ProductSku } from '@/lib/services/api/productService'; // Updated to use SKU interface
+
+// Updated interfaces to match new API structure
+interface ProductAttribute {
+  attr_name: string;
+  attr_value: string;
+  _id: string;
+}
+
+interface ProductVariation {
+  variation_name: string;
+  variation_values: string[];
+  variation_images: string[];
+  _id: string;
+}
+
+interface SpuSelect {
+  _id: string;
+  product_name: string;
+  product_quantity: number;
+  product_description: string;
+  product_category: string;
+  product_shop: string;
+  product_sold: number;
+  product_rating_avg: number;
+  product_slug: string;
+  product_thumb: string;
+  product_images: string[];
+  product_attributes: ProductAttribute[];
+  product_variations: ProductVariation[];
+  is_draft: boolean;
+  is_publish: boolean;
+}
+
+interface Category {
+  _id: string;
+  category_name: string;
+  category_icon: string;
+  category_description: string;
+  category_parent: string;
+  category_level: number;
+  category_order: number;
+  category_product_count: number;
+  is_active: boolean;
+}
+
+interface SkuOther {
+  _id: string;
+  sku_product: string;
+  sku_price: number;
+  sku_stock: number;
+  sku_thumb: string;
+  sku_images: string[];
+  sku_tier_idx: number[];
+}
+
+interface ProductDetailResponse {
+  _id: string;
+  sku_product: string;
+  sku_price: number;
+  sku_stock: number;
+  sku_thumb: string;
+  sku_images: string[];
+  sku_tier_idx: number[];
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  __v: number;
+  spu_select: SpuSelect;
+  category: Category[];
+  sku_others: SkuOther[];
+}
 import { mediaService } from '@/lib/services/api/mediaService';
 import Header from '@/components/common/Header';
 import { Button } from '@/components/ui/button';
@@ -45,9 +114,7 @@ export default function ProductDetailPage() {
   const productId = params.id as string; // This could be either SKU ID or SPU ID
 
   const [product, setProduct] = useState<ProductDetailResponse | null>(null);
-  const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingShop, setLoadingShop] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
@@ -71,7 +138,6 @@ export default function ProductDetailPage() {
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [isModalClosing, setIsModalClosing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  // const [isWishlisted, setIsWishlisted] = useState(false); // For future wishlist functionality
 
   // Combine SKU and SPU images with current SKU images taking priority
   const allImages = [
@@ -96,20 +162,6 @@ export default function ProductDetailPage() {
           setProduct(productData);
           setCurrentSku(productData);
           setSelectedSkuId(productData._id || productId);
-
-          // Fetch shop information
-          if (productData.spu_select?.product_shop) {
-            setLoadingShop(true);
-            try {
-              const shopData = await shopService.getShopById(productData.spu_select.product_shop);
-              setShop(shopData);
-            } catch (shopError) {
-              console.error('Failed to fetch shop details:', shopError);
-              // Don't set error for shop, just log it and continue
-            } finally {
-              setLoadingShop(false);
-            }
-          }
 
           // Initialize selected variations based on current SKU
           if (productData.spu_select?.product_variations && productData.sku_tier_idx) {
@@ -409,8 +461,6 @@ export default function ProductDetailPage() {
     });
   };
 
-  // const toggleWishlist = () => setIsWishlisted(!isWishlisted);
-
   if (loading) {
     return (
       <>
@@ -485,7 +535,6 @@ export default function ProductDetailPage() {
   // Get current price and stock from current SKU
   const currentPrice = currentSku?.sku_price || 0;
   const currentStock = currentSku?.sku_stock || 0;
-  const displayThumb = currentSku?.sku_thumb || product?.spu_select?.product_thumb;
 
   return (
     <>
@@ -496,9 +545,9 @@ export default function ProductDetailPage() {
           <Link href="/products" className="hover:text-blue-600">Products</Link>
           <span>/</span>
           <span className="font-medium text-gray-700 truncate max-w-[200px] sm:max-w-[300px] md:max-w-[400px]">
-            {product.spu_select.product_name}
-              </span>
-            </nav>
+            {product?.spu_select?.product_name}
+          </span>
+        </nav>
 
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
           <div className='md:sticky md:top-24'>
@@ -518,9 +567,9 @@ export default function ProductDetailPage() {
               
               {selectedImage ? (
                 <>
-                  <NextImage // Use aliased import
+                  <NextImage
                     src={selectedImage}
-                    alt={product.spu_select.product_name}
+                    alt={product?.spu_select?.product_name || 'Product Image'}
                     layout="fill"
                     objectFit="contain"
                     className="transition-all duration-500 ease-in-out group-hover:scale-105"
@@ -530,14 +579,13 @@ export default function ProductDetailPage() {
                     }}
                     onLoadStart={() => setIsImageLoading(true)}
                     onError={() => {
-                      // Attempt to load placeholder if selectedImage fails
                       if (selectedImage !== '/placeholder.svg') {
                           setSelectedImage('/placeholder.svg');
                       }
                       setIsImageLoading(false);
                     }}
-                  priority
-                />
+                    priority
+                  />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:scale-110 bg-white bg-opacity-90 rounded-full p-2">
                       <Maximize2 className="w-6 h-6 text-gray-700" />
@@ -550,6 +598,7 @@ export default function ProductDetailPage() {
                 </div>
               )}
             </div>
+            
             {allImages.length > 1 && (
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
                 {allImages.map((imgId, index) => (
@@ -562,9 +611,9 @@ export default function ProductDetailPage() {
                         : 'border-gray-200 hover:border-blue-400'
                     }`}
                   >
-                    <NextImage // Use aliased import
+                    <NextImage
                       src={mediaService.getMediaUrl(imgId)}
-                      alt={`${product.spu_select.product_name} thumbnail`}
+                      alt={`${product?.spu_select?.product_name} thumbnail`}
                       layout="fill"
                       objectFit="cover"
                       className="bg-gray-50 transition-all duration-300 hover:brightness-110"
@@ -572,7 +621,7 @@ export default function ProductDetailPage() {
                       onError={(e) => { 
                         const target = e.target as HTMLImageElement;
                         target.src = '/placeholder.svg';
-                        target.srcset = ''; // Clear srcset as well if it was set
+                        target.srcset = '';
                       }}
                     />
                     {/* Selection indicator */}
@@ -587,15 +636,14 @@ export default function ProductDetailPage() {
                 ))}
               </div>
             )}
-                </div>
+          </div>
 
           <div className="space-y-6 py-2">
             <div className="flex justify-between items-start">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 leading-tight">{product.spu_select.product_name}</h1>
-                {/* <Button variant="ghost" size="icon" onClick={toggleWishlist} className="text-gray-400 hover:text-red-500">
-                    <Heart className={`w-6 h-6 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
-                </Button> */}
-          </div>
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 leading-tight">
+                {product?.spu_select?.product_name}
+              </h1>
+            </div>
 
             {/* Category Information */}
             {product.category && product.category.length > 0 && (
@@ -605,20 +653,6 @@ export default function ProductDetailPage() {
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Category</p>
                     <div className="flex items-center gap-2">
-                      {product.category[0].category_icon && (
-                        <div className="w-6 h-6 relative">
-                          <NextImage
-                            src={mediaService.getMediaUrl(product.category[0].category_icon)}
-                            alt={product.category[0].category_name}
-                            layout="fill"
-                            objectFit="contain"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
                       <Link 
                         href={`/categories?category=${product.category[0]._id}`}
                         className="text-green-700 font-semibold hover:text-green-800 transition-colors"
@@ -634,34 +668,37 @@ export default function ProductDetailPage() {
               </div>
             )}
 
+            {/* Rating and Sales */}
             {(product.spu_select.product_rating_avg || (product.spu_select.product_sold && product.spu_select.product_sold > 0)) && (
-                <div className="flex items-center gap-3 text-sm">
-                    {product.spu_select.product_rating_avg && product.spu_select.product_rating_avg > 0 && (
-                        <>
-                            <div className="flex items-center">
-                                {[...Array(5)].map((_, i) => (
-                    <Star
-                                    key={i}
-                                    className={`h-4 w-4 ${i < Math.round(product.spu_select.product_rating_avg!) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-                    />
-                  ))}
-                                <span className="ml-1.5 text-gray-600">({product.spu_select.product_rating_avg.toFixed(1)})</span>
-                            </div>
-                            {product.spu_select.product_sold && product.spu_select.product_sold > 0 && <span className="text-gray-400">•</span>}
-                        </>
-                    )}
-                    {product.spu_select.product_sold && product.spu_select.product_sold > 0 && (
-                        <span className="text-gray-600">{product.spu_select.product_sold.toLocaleString()} sold</span>
-                    )}
-                </div>
+              <div className="flex items-center gap-3 text-sm">
+                {product.spu_select.product_rating_avg && product.spu_select.product_rating_avg > 0 && (
+                  <>
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${i < Math.round(product.spu_select.product_rating_avg!) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+                        />
+                      ))}
+                      <span className="ml-1.5 text-gray-600">({product.spu_select.product_rating_avg.toFixed(1)})</span>
+                    </div>
+                    {product.spu_select.product_sold && product.spu_select.product_sold > 0 && <span className="text-gray-400">•</span>}
+                  </>
+                )}
+                {product.spu_select.product_sold && product.spu_select.product_sold > 0 && (
+                  <span className="text-gray-600">{product.spu_select.product_sold.toLocaleString()} sold</span>
+                )}
+              </div>
             )}
             
+            {/* Price */}
             <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold text-blue-700">
-                    ${currentPrice.toFixed(2)}
-                </span>
+              <span className="text-3xl font-bold text-blue-700">
+                ${currentPrice.toFixed(2)}
+              </span>
             </div>
 
+            {/* Stock */}
             <div className="flex items-center gap-2 pt-2">
               <Package className={`h-5 w-5 ${currentStock > 0 ? 'text-green-600' : 'text-red-500'}`} />
               {currentStock > 0 ? (
@@ -681,7 +718,7 @@ export default function ProductDetailPage() {
                 <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
                   <Palette className="h-5 w-5 mr-2 text-blue-600" /> Select Options
                 </h3>
-                {product.spu_select.product_variations.map((variation, variationIndex) => (
+                {product.spu_select.product_variations.map((variation) => (
                   <div key={variation._id} className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">
                       {variation.variation_name}:
@@ -711,7 +748,7 @@ export default function ProductDetailPage() {
                 <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
                   <h4 className="text-sm font-semibold text-gray-800 mb-2">Current Selection:</h4>
                   <div className="flex flex-wrap gap-2">
-                    {product.spu_select.product_variations.map((variation, index) => {
+                    {product.spu_select.product_variations.map((variation) => {
                       const selectedIndex = selectedVariations[variation._id] ?? 0;
                       const selectedValue = variation.variation_values[selectedIndex];
                       return (
@@ -734,57 +771,13 @@ export default function ProductDetailPage() {
                 <p className="text-xs text-gray-500 mb-1.5">Sold and Shipped by:</p>
                 <Link href={`/shop/${product.spu_select.product_shop}`} className="flex items-center gap-3 group p-1 -m-1 rounded-md hover:bg-gray-50 transition-colors">
                   <div className="relative w-10 h-10 rounded-full overflow-hidden border bg-gray-100 flex items-center justify-center">
-                    {loadingShop ? (
-                      <Skeleton className="w-10 h-10 rounded-full" />
-                    ) : shop?.shop_logo ? (
-                      <NextImage
-                        src={mediaService.getMediaUrl(shop.shop_logo)}
-                        alt={`${shop.shop_name} logo`}
-                        width={40}
-                        height={40}
-                        className="rounded-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <User className="w-5 h-5 text-gray-400" />
-                    )}
+                    <User className="w-5 h-5 text-gray-400" />
                   </div>
-                  <div className="flex-1">
-                    {loadingShop ? (
-                      <div>
-                        <Skeleton className="h-4 w-24 mb-1" />
-                        <Skeleton className="h-3 w-16" />
-                      </div>
-                    ) : shop ? (
-                      <div>
-                        <span className="text-md font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
-                          {shop.shop_name}
-                        </span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-gray-500">View Store</p>
-                          {shop.is_brand && (
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
-                              Brand
-                            </Badge>
-                          )}
-                        </div>
-                        {shop.shop_location && (
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {shop.shop_location.province?.province_name}, {shop.shop_location.district?.district_name}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        <span className="text-md font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
-                          Shop ID: {product.spu_select.product_shop}
-                        </span>
-                        <p className="text-xs text-gray-500">View Store</p>
-                      </div>
-                    )}
+                  <div>
+                    <span className="text-md font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
+                      Shop ID: {product.spu_select.product_shop}
+                    </span>
+                    <p className="text-xs text-gray-500">View Store</p>
                   </div>
                 </Link>
               </div>
@@ -792,19 +785,21 @@ export default function ProductDetailPage() {
             
             <Separator className="!my-5"/>
 
+            {/* Product Description */}
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center">
                 <Info className="h-5 w-5 mr-2 text-blue-600" /> Product Description
               </h3>
               <div className="text-gray-700 leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none">
                 {product.spu_select.product_description ? (
-                    <div dangerouslySetInnerHTML={{ __html: product.spu_select.product_description.replace(/\n/g, '<br />') }} />
-                 ) : (
-                    <p>No description available for this product.</p>
+                  <div dangerouslySetInnerHTML={{ __html: product.spu_select.product_description.replace(/\n/g, '<br />') }} />
+                ) : (
+                  <p>No description available for this product.</p>
                 )}
               </div>
             </div>
 
+            {/* Product Attributes */}
             {product.spu_select.product_attributes && product.spu_select.product_attributes.length > 0 && (
               <div className="pt-2">
                 <Separator className="!my-5" />
@@ -824,12 +819,13 @@ export default function ProductDetailPage() {
             
             <Separator className="!my-6" />
 
+            {/* Action Buttons */}
             <div className="grid sm:grid-cols-2 gap-3 pt-2">
               <Button
                 size="lg" 
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center text-base py-3 h-auto shadow-md hover:shadow-lg transition-shadow"
                 disabled={currentStock === 0}
-                onClick={() => console.log('Add to cart:', currentSku?._id)} // Use current SKU ID for cart
+                onClick={() => console.log('Add to cart:', currentSku?._id)}
               >
                 <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
               </Button>
@@ -838,7 +834,7 @@ export default function ProductDetailPage() {
                 variant="outline"
                 className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700 flex items-center justify-center text-base py-3 h-auto shadow-md hover:shadow-lg transition-shadow"
                 disabled={currentStock === 0}
-                onClick={() => console.log('Buy now:', currentSku?._id)} // Use current SKU ID for purchase
+                onClick={() => console.log('Buy now:', currentSku?._id)}
               >
                 <Zap className="mr-2 h-5 w-5" /> Buy Now
               </Button>
@@ -846,270 +842,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Reviews Section */}
-        <div className="mt-16">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 flex items-center">
-              <MessageSquare className="mr-3 h-6 w-6 text-blue-600" />
-              Customer Reviews
-            </h2>
-            {ratingBreakdown && (
-              <div className="flex items-center gap-4 text-sm text-gray-600">
-                <span>{ratingBreakdown.average.toFixed(1)} out of 5 stars</span>
-                <span>•</span>
-                <span>{ratingBreakdown.total} reviews</span>
-              </div>
-            )}
-          </div>
-
-          {loadingReviews ? (
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="border rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Skeleton className="w-10 h-10 rounded-full" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-24 mb-1" />
-                      <Skeleton className="h-3 w-16" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-4 w-3/4" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid lg:grid-cols-3 gap-8">
-              {/* Rating Breakdown */}
-              {ratingBreakdown && (
-                <div className="lg:col-span-1">
-                  <div className="bg-white border rounded-lg p-6">
-                    <h3 className="text-lg font-semibold mb-4">Rating Breakdown</h3>
-                    <div className="space-y-3">
-                      {[5, 4, 3, 2, 1].map((rating) => (
-                        <div key={rating} className="flex items-center gap-2">
-                          <span className="text-sm w-3">{rating}</span>
-                          <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-yellow-400 h-2 rounded-full" 
-                              style={{ width: `${(ratingBreakdown[rating as keyof typeof ratingBreakdown] / ratingBreakdown.total) * 100}%` }}
-                            />
-                          </div>
-                          <span className="text-sm text-gray-600 w-8">{ratingBreakdown[rating as keyof typeof ratingBreakdown]}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Write Review Button */}
-                    <Button 
-                      onClick={() => setShowReviewForm(!showReviewForm)}
-                      className="w-full mt-6 bg-blue-600 hover:bg-blue-700"
-                    >
-                      Write a Review
-                    </Button>
-
-                    {/* Review Form */}
-                    {showReviewForm && (
-                      <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium mb-2">Rating</label>
-                          <div className="flex gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`w-6 h-6 cursor-pointer transition-colors ${
-                                  star <= newReview.rating 
-                                    ? 'text-yellow-400 fill-yellow-400' 
-                                    : 'text-gray-300 hover:text-yellow-300'
-                                }`}
-                                onClick={() => setNewReview(prev => ({ ...prev, rating: star }))}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium mb-2">Your Review</label>
-                          <textarea
-                            className="w-full p-3 border rounded-md resize-none"
-                            rows={4}
-                            placeholder="Share your experience with this product..."
-                            value={newReview.comment}
-                            onChange={(e) => setNewReview(prev => ({ ...prev, comment: e.target.value }))}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button onClick={handleSubmitReview} size="sm">
-                            Submit Review
-                          </Button>
-                          <Button 
-                            onClick={() => setShowReviewForm(false)} 
-                            variant="outline" 
-                            size="sm"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Reviews List */}
-              <div className="lg:col-span-2">
-                <div className="space-y-6">
-                  {reviews.length > 0 ? (
-                    reviews.map((review) => (
-                      <div key={review._id} className="bg-white border rounded-lg p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-800">{review.user_name}</h4>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="flex gap-0.5">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-sm text-gray-500">
-                                  {formatDate(review.created_at)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <p className="text-gray-700 leading-relaxed mb-4">
-                          {review.comment}
-                        </p>
-
-                        {review.images && review.images.length > 0 && (
-                          <div className="flex gap-2 mb-4">
-                            {review.images.map((img, index) => (
-                              <div key={index} className="w-16 h-16 rounded border overflow-hidden">
-                                <NextImage
-                                  src={mediaService.getMediaUrl(img)}
-                                  alt={`Review image ${index + 1}`}
-                                  width={64}
-                                  height={64}
-                                  objectFit="cover"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <button className="flex items-center gap-1 hover:text-blue-600 transition-colors">
-                            <ThumbsUp className="w-4 h-4" />
-                            Helpful ({review.helpful_count || 0})
-                          </button>
-                          <span>•</span>
-                          <span>Verified Purchase</span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-12 text-gray-500">
-                      <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <h3 className="text-lg font-medium text-gray-700 mb-2">No reviews yet</h3>
-                      <p>Be the first to review this product!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Related Products Section */}
-        {product.category && product.category.length > 0 && (
-          <div className="mt-16">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Related Products</h2>
-              <p className="text-gray-600">Other products in {product.category[0].category_name}</p>
-            </div>
-
-            {loadingRelated ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="border rounded-lg p-4">
-                    <Skeleton className="w-full aspect-square rounded mb-3" />
-                    <Skeleton className="h-4 w-3/4 mb-2" />
-                    <Skeleton className="h-4 w-1/2 mb-2" />
-                    <Skeleton className="h-6 w-1/3" />
-                  </div>
-                ))}
-              </div>
-            ) : relatedProducts.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {relatedProducts.map((relatedProduct) => (
-                  <Link 
-                    key={relatedProduct.sku._id}
-                    href={`/products/${relatedProduct.sku._id}`}
-                    className="group border rounded-lg overflow-hidden hover:shadow-lg transition-shadow bg-white"
-                  >
-                    <div className="relative aspect-square overflow-hidden bg-gray-50">
-                      <NextImage
-                        src={mediaService.getMediaUrl(relatedProduct.sku.sku_thumb || relatedProduct.product_thumb)}
-                        alt={relatedProduct.product_name}
-                        layout="fill"
-                        objectFit="cover"
-                        className="group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = '/placeholder.svg';
-                        }}
-                      />
-                    </div>
-                    <div className="p-3">
-                      <h3 className="text-sm font-medium text-gray-800 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                        {relatedProduct.product_name}
-                      </h3>
-                      {relatedProduct.product_rating_avg && relatedProduct.product_rating_avg > 0 && (
-                        <div className="flex items-center gap-1 mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-3 w-3 ${i < Math.round(relatedProduct.product_rating_avg!) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-                            />
-                          ))}
-                          <span className="text-xs text-gray-600 ml-1">
-                            ({relatedProduct.product_rating_avg.toFixed(1)})
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-blue-700">
-                          ${relatedProduct.sku.sku_price.toFixed(2)}
-                        </span>
-                        {relatedProduct.sold_count && relatedProduct.sold_count > 0 && (
-                          <span className="text-xs text-gray-500">
-                            {relatedProduct.sold_count} sold
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <LayoutGrid className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>No related products found in this category.</p>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {/* Image Preview Modal */}
+        {/* Image Modal */}
         {isImageModalOpen && (
           <div 
             className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
@@ -1122,181 +855,29 @@ export default function ProductDetailPage() {
             <div className={`relative w-full h-full flex items-center justify-center p-4 transition-transform duration-300 ${
               isModalClosing ? 'scale-95' : 'scale-100'
             }`}>
-              {/* Loading Overlay for Modal */}
-              {isImageLoading && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20 transition-opacity duration-200">
-                  <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-3">
-                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm text-white">Loading image...</span>
-                  </div>
-                </div>
-              )}
-
               {/* Close Button */}
               <button
                 onClick={closeImageModal}
-                className="absolute top-4 right-4 z-10 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-all duration-200 hover:scale-110 hover:rotate-90"
+                className="absolute top-4 right-4 z-10 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-all duration-200 hover:scale-110"
               >
                 <X className="w-6 h-6 text-white" />
               </button>
 
-              {/* Navigation Buttons */}
-              {allImages.length > 1 && (
-                <>
-                  <button
-                    onClick={prevImage}
-                    disabled={currentImageIndex === 0}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 disabled:hover:scale-100"
-                  >
-                    <ChevronLeftIcon className="w-6 h-6 text-white" />
-                  </button>
-                  <button
-                    onClick={nextImage}
-                    disabled={currentImageIndex === allImages.length - 1}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 disabled:hover:scale-100"
-                  >
-                    <ChevronRight className="w-6 h-6 text-white" />
-                  </button>
-                </>
-              )}
-
-              {/* Zoom Controls */}
-              <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                <button
-                  onClick={zoomIn}
-                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
-                  disabled={imageZoom >= 3}
-                >
-                  <ZoomIn className="w-5 h-5 text-white" />
-                </button>
-                <button
-                  onClick={zoomOut}
-                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
-                  disabled={imageZoom <= 0.5}
-                >
-                  <ZoomOut className="w-5 h-5 text-white" />
-                </button>
-                <button
-                  onClick={resetZoom}
-                  className="px-3 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-all duration-200 text-xs text-white font-medium hover:scale-110"
-                >
-                  Reset
-                </button>
-                
-                {/* Zoom Level Indicator */}
-                <div className="px-2 py-1 bg-white bg-opacity-20 rounded-full text-xs text-white text-center font-medium">
-                  {Math.round(imageZoom * 100)}%
-                </div>
-              </div>
-
-              {/* Image Counter */}
-              {allImages.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-white bg-opacity-20 backdrop-blur-sm rounded-full text-white text-sm font-medium">
-                  {currentImageIndex + 1} / {allImages.length}
-                </div>
-              )}
-
               {/* Main Image */}
-              <div 
-                className={`relative max-w-full max-h-full overflow-hidden transition-all duration-300 ease-out ${
-                  imageZoom > 1 ? 'cursor-grab' : 'cursor-zoom-in'
-                } ${isDragging ? 'cursor-grabbing' : ''}`}
-                style={{
-                  transform: `scale(${imageZoom}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
-                  transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                }}
-                onMouseDown={(e) => {
-                  if (imageZoom > 1) {
-                    setIsDragging(true);
-                    const startX = e.clientX - imagePosition.x;
-                    const startY = e.clientY - imagePosition.y;
-                    
-                    const handleMouseMove = (e: MouseEvent) => {
-                      setImagePosition({
-                        x: e.clientX - startX,
-                        y: e.clientY - startY
-                      });
-                    };
-                    
-                    const handleMouseUp = () => {
-                      setIsDragging(false);
-                      document.removeEventListener('mousemove', handleMouseMove);
-                      document.removeEventListener('mouseup', handleMouseUp);
-                    };
-                    
-                    document.addEventListener('mousemove', handleMouseMove);
-                    document.addEventListener('mouseup', handleMouseUp);
-                  }
-                }}
-                onDoubleClick={() => {
-                  if (imageZoom === 1) {
-                    setImageZoom(2);
-                  } else {
-                    resetZoom();
-                  }
-                }}
-              >
+              <div className="relative max-w-full max-h-full overflow-hidden">
                 <NextImage
                   src={mediaService.getMediaUrl(allImages[currentImageIndex])}
-                  alt={`${product.spu_select.product_name} - Image ${currentImageIndex + 1}`}
+                  alt={`${product?.spu_select?.product_name} - Image ${currentImageIndex + 1}`}
                   width={800}
                   height={800}
                   objectFit="contain"
-                  className={`max-w-full max-h-screen transition-opacity duration-300 ${
-                    isImageLoading ? 'opacity-50' : 'opacity-100'
-                  }`}
+                  className="max-w-full max-h-screen"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.src = '/placeholder.svg';
                   }}
                   priority
                 />
-              </div>
-
-              {/* Thumbnail Strip */}
-              {allImages.length > 1 && (
-                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 flex gap-2 bg-white bg-opacity-20 backdrop-blur-sm p-3 rounded-lg max-w-md overflow-x-auto">
-                  {allImages.map((imgId, index) => (
-                    <button
-                      key={imgId}
-                      onClick={() => {
-                        setIsImageLoading(true);
-                        setTimeout(() => {
-                          setCurrentImageIndex(index);
-                          setImageZoom(1);
-                          setImagePosition({ x: 0, y: 0 });
-                          setTimeout(() => setIsImageLoading(false), 150);
-                        }, 100);
-                      }}
-                      className={`relative w-14 h-14 rounded-md overflow-hidden border-2 transition-all duration-200 hover:scale-110 ${
-                        index === currentImageIndex 
-                          ? 'border-white shadow-lg scale-110' 
-                          : 'border-transparent hover:border-white/50'
-                      }`}
-                    >
-                      <NextImage
-                        src={mediaService.getMediaUrl(imgId)}
-                        alt={`Thumbnail ${index + 1}`}
-                        layout="fill"
-                        objectFit="cover"
-                        className="transition-opacity duration-200 hover:opacity-80"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = '/placeholder.svg';
-                        }}
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Instructions */}
-              <div className="absolute bottom-4 right-4 z-10 text-xs text-white bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-3 py-2">
-                <div className="flex flex-col gap-1">
-                  <span>• Scroll to zoom</span>
-                  <span>• Double-click to toggle zoom</span>
-                  <span>• Drag to move when zoomed</span>
-                </div>
               </div>
             </div>
           </div>
