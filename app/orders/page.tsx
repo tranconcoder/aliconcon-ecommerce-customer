@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import {
@@ -35,14 +35,8 @@ import {
     XCircle,
     Clock,
     CreditCard,
-    MapPin,
-    Phone,
-    Mail,
-    Calendar,
     ShoppingBag,
-    Eye,
     Search,
-    Filter,
     ChevronLeft,
     ChevronRight,
     SortAsc,
@@ -106,7 +100,6 @@ export default function OrderHistoryPage() {
 
     // Filter and search states
     const [searchTerm, setSearchTerm] = useState('');
-    const [showSearchInput, setShowSearchInput] = useState(false);
     const [paymentTypeFilter, setPaymentTypeFilter] = useState('all');
     const [sortBy, setSortBy] = useState<'created_at' | 'updated_at' | 'price_to_payment'>(
         'created_at'
@@ -120,43 +113,12 @@ export default function OrderHistoryPage() {
     // Debounced search
     const [searchDebounce, setSearchDebounce] = useState('');
 
-    // Tab sliding indicator position
-    const [indicatorStyle, setIndicatorStyle] = useState({ left: '0%', width: '16.666%' });
-
-    // Tab colors for sliding effect
-    const tabColors = {
-        pending_payment: 'from-orange-500 to-red-500',
-        pending: 'from-yellow-500 to-orange-500',
-        delivering: 'from-blue-500 to-cyan-500',
-        success: 'from-green-500 to-emerald-500',
-        completed: 'from-emerald-600 to-teal-600',
-        cancelled: 'from-red-500 to-pink-500'
-    };
-
     useEffect(() => {
         const timer = setTimeout(() => {
             setSearchDebounce(searchTerm);
         }, 500);
         return () => clearTimeout(timer);
     }, [searchTerm]);
-
-    // Update indicator position when active tab changes
-    useEffect(() => {
-        const tabOrder = [
-            'pending_payment',
-            'pending',
-            'delivering',
-            'success',
-            'completed',
-            'cancelled'
-        ];
-        const activeIndex = tabOrder.indexOf(activeTab);
-        const leftPosition = (activeIndex * 100) / 6; // 6 tabs total
-        setIndicatorStyle({
-            left: `${leftPosition}%`,
-            width: '16.666%' // 100% / 6 tabs
-        });
-    }, [activeTab]);
 
     // Fetch orders based on filters
     const fetchOrders = useCallback(async () => {
@@ -294,7 +256,6 @@ export default function OrderHistoryPage() {
 
     const clearFilters = () => {
         setSearchTerm('');
-        setShowSearchInput(false);
         setPaymentTypeFilter('all');
         setDateFrom('');
         setDateTo('');
@@ -357,383 +318,148 @@ export default function OrderHistoryPage() {
         const canCancel =
             order.order_status === 'pending_payment' || order.order_status === 'pending';
         const isCancelling = cancellingOrderId === order._id;
+        const firstProduct = order.products_info?.[0];
 
         return (
-            <Card key={order._id} className="mb-4 hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                        <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-50 rounded-lg">
-                                <Package className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-lg">
-                                    Đơn hàng #{(order._id || '').slice(-8) || 'N/A'}
-                                </CardTitle>
-                                <p className="text-sm text-gray-500">
-                                    Đặt hàng:{' '}
-                                    {formatDate(order.created_at || order.updated_at || '')}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Badge className={statusInfo.color}>
-                                <StatusIcon className="h-3 w-3 mr-1" />
-                                {statusInfo.label}
-                            </Badge>
-                            {order.payment_paid && (
-                                <Badge className="bg-green-100 text-green-800 border-green-300">
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    Đã thanh toán
-                                </Badge>
-                            )}
-                        </div>
-                    </div>
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                    {/* Customer Info */}
-                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <Avatar className="h-10 w-10">
-                            <AvatarImage
-                                src={
-                                    order.customer_avatar
-                                        ? getMediaUrl(order.customer_avatar)
-                                        : undefined
-                                }
-                            />
-                            <AvatarFallback>
-                                {order.customer_full_name?.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                            <p className="font-medium">
-                                {order.customer_full_name || 'Unknown Customer'}
-                            </p>
-                            <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                <div className="flex items-center">
-                                    <Phone className="h-3 w-3 mr-1" />
-                                    {order.customer_phone || 'N/A'}
-                                </div>
-                                {order.customer_email && (
-                                    <div className="flex items-center">
-                                        <Mail className="h-3 w-3 mr-1" />
-                                        {order.customer_email}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Shipping Address */}
-                    <div className="flex items-start space-x-2 text-sm">
-                        <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
-                        <div>
-                            <p className="font-medium">Địa chỉ giao hàng:</p>
-                            <p className="text-gray-600">
-                                {order.customer_address || 'Không có thông tin'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Order Items */}
-                    <div className="space-y-3">
-                        <p className="font-medium flex items-center">
-                            <ShoppingBag className="h-4 w-4 mr-2" />
-                            Sản phẩm đã đặt:
-                        </p>
-                        <div className="border rounded-lg p-3">
-                            <div className="flex items-center space-x-2 mb-3">
-                                <Avatar className="h-8 w-8">
-                                    <AvatarImage
-                                        src={
-                                            order.shop_logo
-                                                ? getMediaUrl(order.shop_logo)
-                                                : undefined
-                                        }
-                                    />
-                                    <AvatarFallback>
-                                        {order.shop_name?.charAt(0).toUpperCase() || 'S'}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <p className="font-medium text-sm">
-                                    {order.shop_name || 'Unknown Shop'}
-                                </p>
-                            </div>
-
-                            <div className="space-y-2">
-                                {order.products_info?.slice(0, 2).map((product, productIndex) => (
-                                    <div key={productIndex} className="flex items-center space-x-3">
+            <Card key={order._id} className="mb-3 hover:shadow-md transition-shadow overflow-hidden group">
+                <CardContent className="p-0">
+                    <div className="flex flex-col sm:flex-row">
+                            {/* Image & Basic Info */}
+                        <div className="flex-1 p-4 flex gap-4">
+                            {/* Thumbnail */}
+                            <div className="h-20 w-20 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden border group/thumb relative">
+                                {firstProduct ? (
+                                    <Link href={`/products/${firstProduct.sku_id}`}>
                                         <img
-                                            src={getMediaUrl(product.thumb)}
-                                            alt={product.product_name || 'Product'}
-                                            className="h-12 w-12 object-cover rounded"
+                                            src={getMediaUrl(firstProduct.thumb)}
+                                            alt={firstProduct.product_name}
+                                            className="h-full w-full object-cover transition-transform group-hover/thumb:scale-105"
                                         />
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium">
-                                                {product.product_name || 'Unknown Product'}
-                                            </p>
-                                            <p className="text-xs text-gray-500">
-                                                Số lượng: {product.quantity || 0} ×{' '}
-                                                {formatPrice(product.price || 0)}
-                                            </p>
-                                        </div>
-                                        <p className="text-sm font-medium">
-                                            {formatPrice(
-                                                (product.price || 0) * (product.quantity || 0)
-                                            )}
-                                        </p>
+                                    </Link>
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-gray-400">
+                                        <Package className="h-8 w-8" />
                                     </div>
-                                )) || []}
-
-                                {(order.products_info?.length || 0) > 2 && (
-                                    <p className="text-sm text-gray-500 text-center py-2">
-                                        ... và {(order.products_info?.length || 0) - 2} sản phẩm
-                                        khác
-                                    </p>
                                 )}
                             </div>
 
-                            {/* Shop Discount */}
-                            {order.shop_discount && (
-                                <div className="mt-2 p-2 bg-green-50 rounded text-sm">
-                                    <p className="text-green-700">
-                                        Giảm giá shop:{' '}
-                                        {order.shop_discount.discount_name || 'Discount'} (-
-                                        {formatPrice(order.shop_discount.discount_value || 0)})
-                                    </p>
+                            {/* Order Info */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-bold text-lg">
+                                        #{(order._id || '').slice(-8)}
+                                    </span>
+                                    <Badge variant="outline" className="text-xs font-normal text-gray-500">
+                                        {formatDate(order.created_at || order.updated_at || '')}
+                                    </Badge>
                                 </div>
-                            )}
-
-                            {/* Admin Discount */}
-                            {order.discount && (
-                                <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
-                                    <p className="text-blue-700">
-                                        Giảm giá hệ thống:{' '}
-                                        {order.discount.discount_name || 'Discount'} (-
-                                        {formatPrice(order.discount.discount_value || 0)})
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Shipping Fee */}
-                            <div className="mt-2 pt-2 border-t">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-600">Phí vận chuyển:</span>
-                                    <span className="font-medium">
-                                        {formatPrice(order.fee_ship || 0)}
+                                
+                                <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                                    <ShoppingBag className="h-3 w-3" />
+                                    <span className="truncate font-medium">
+                                        {order.shop_name || 'Unknown Shop'}
                                     </span>
                                 </div>
+
+                                <div className="space-y-4 mt-3">
+                                    {order.products_info?.slice(0, 3).map((product, index) => (
+                                        <div key={index} className="flex items-start gap-3 group/item">
+                                            {/* Secondary Thumb - Only for index > 0 */}
+                                            {index > 0 && (
+                                                <Link 
+                                                    href={`/products/${product.sku_id}`}
+                                                    className="h-14 w-14 flex-shrink-0 bg-gray-100 rounded border overflow-hidden block"
+                                                >
+                                                    <img
+                                                        src={getMediaUrl(product.thumb)}
+                                                        alt={product.product_name}
+                                                        className="h-full w-full object-cover transition-transform group-hover/item:scale-105"
+                                                    />
+                                                </Link>
+                                            )}
+
+                                            <div className="flex-1 min-w-0 py-1">
+                                                <Link
+                                                    href={`/products/${product.sku_id}`}
+                                                    className="text-sm font-medium text-gray-900 truncate hover:text-blue-600 transition-colors block"
+                                                >
+                                                    {product.product_name || 'Sản phẩm'}
+                                                </Link>
+                                                <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                                                    <span className="bg-gray-100 px-2 py-0.5 rounded text-xs text-gray-700 font-medium">
+                                                        x{product.quantity || 1}
+                                                    </span>
+                                                    {product.price && (
+                                                        <span className="text-gray-900">
+                                                            {formatPrice(product.price)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {(order.products_info?.length || 0) > 3 && (
+                                        <div className="text-sm text-gray-500 hover:text-blue-600 pl-1 cursor-pointer">
+                                            Xem thêm {(order.products_info?.length || 0) - 3} sản phẩm khác...
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Payment Info */}
-                    <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <div>
-                            <p className="text-sm text-gray-600">Phương thức thanh toán:</p>
-                            <p className="font-medium">
-                                {order.payment_type
-                                    ? PAYMENT_TYPE_MAP[
-                                          order.payment_type as keyof typeof PAYMENT_TYPE_MAP
-                                      ] || order.payment_type
-                                    : 'Không xác định'}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                                <p className="text-sm text-gray-600">Trạng thái:</p>
-                                {order.payment_paid ? (
-                                    <Badge className="bg-green-100 text-green-800 border-green-300">
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Đã thanh toán
-                                    </Badge>
-                                ) : (
-                                    <Badge className="bg-orange-100 text-orange-800 border-orange-300">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        Chưa thanh toán
-                                    </Badge>
-                                )}
-                            </div>
-                            {order.payment_paid && order.payment_date && (
-                                <p className="text-xs text-green-600 mt-1 flex items-center">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    Thanh toán lúc: {formatDate(order.payment_date)}
-                                </p>
-                            )}
-                        </div>
-                        <div className="text-right">
-                            <p className="text-sm text-gray-600">Tổng tiền:</p>
-                            <p className="text-xl font-bold text-blue-600">
-                                {formatPrice(order.price_to_payment || 0)}
-                            </p>
-                            {(order.total_discount_price || 0) > 0 && (
-                                <p className="text-sm text-green-600">
-                                    Đã giảm: {formatPrice(order.total_discount_price || 0)}
-                                </p>
-                            )}
-                            {order.payment_paid && (
-                                <div className="flex items-center justify-end mt-1">
-                                    <Badge
-                                        variant="outline"
-                                        className="bg-green-50 text-green-700 border-green-300"
-                                    >
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Đã thanh toán
-                                    </Badge>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Refund Information */}
-                    {order.order_status === 'cancelled' && order.refund_info && (
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-yellow-800 flex items-center">
-                                        <RefreshCw className="h-4 w-4 mr-2" />
-                                        Thông tin hoàn tiền
-                                    </p>
-                                    <div className="mt-2 space-y-1">
-                                        <p className="text-sm text-gray-600">
-                                            Mã hoàn tiền:{' '}
-                                            <span className="font-mono text-xs">
-                                                {order.refund_info.refund_id}
-                                            </span>
-                                        </p>
-                                        <p className="text-sm text-gray-600">
-                                            Số tiền hoàn:{' '}
-                                            <span className="font-medium text-yellow-700">
-                                                {formatPrice(order.refund_info.refund_amount)}
-                                            </span>
-                                        </p>
-                                        {order.cancellation_reason && (
-                                            <p className="text-sm text-gray-600">
-                                                Lý do hủy:{' '}
-                                                <span className="italic">
-                                                    {order.cancellation_reason}
-                                                </span>
-                                            </p>
-                                        )}
-                                        {order.rejection_reason && order.rejected_by_shop && (
-                                            <p className="text-sm text-gray-600">
-                                                Lý do từ chối:{' '}
-                                                <span className="italic">
-                                                    {order.rejection_reason}
-                                                </span>
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
+                        {/* Right: Status, Price & Actions */}
+                        <div className="flex flex-col sm:items-end justify-between p-4 bg-gray-50/50 sm:w-64 border-t sm:border-t-0">
+                            <div className="flex justify-between sm:flex-col sm:items-end w-full gap-2">
+                                <Badge className={`${statusInfo.color} whitespace-nowrap`}>
+                                    <StatusIcon className="h-3 w-3 mr-1" />
+                                    {statusInfo.label}
+                                </Badge>
                                 <div className="text-right">
-                                    <Badge
-                                        className={
-                                            order.refund_info.refund_status === 'completed'
-                                                ? 'bg-green-100 text-green-800 border-green-300'
-                                                : order.refund_info.refund_status === 'failed'
-                                                ? 'bg-red-100 text-red-800 border-red-300'
-                                                : 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                                        }
-                                    >
-                                        {order.refund_info.refund_status === 'completed' && (
-                                            <CheckCircle className="h-3 w-3 mr-1" />
-                                        )}
-                                        {order.refund_info.refund_status === 'failed' && (
-                                            <XCircle className="h-3 w-3 mr-1" />
-                                        )}
-                                        {order.refund_info.refund_status === 'pending' && (
-                                            <Clock className="h-3 w-3 mr-1" />
-                                        )}
-                                        {order.refund_info.refund_status === 'completed'
-                                            ? 'Đã hoàn tiền'
-                                            : order.refund_info.refund_status === 'failed'
-                                            ? 'Hoàn tiền thất bại'
-                                            : 'Đang xử lý hoàn tiền'}
-                                    </Badge>
-                                    {order.refund_info.refund_status === 'completed' && (
-                                        <p className="text-xs text-green-600 mt-1">
-                                            Tiền sẽ được hoàn về tài khoản trong 1-3 ngày làm việc
-                                        </p>
-                                    )}
-                                    {order.refund_info.refund_status === 'pending' && (
-                                        <p className="text-xs text-yellow-600 mt-1">
-                                            Đang xử lý, vui lòng chờ
-                                        </p>
-                                    )}
+                                    <p className="font-bold text-lg text-blue-600">
+                                        {formatPrice(order.price_to_payment || 0)}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {order.payment_type === 'cod' ? 'Thanh toán khi nhận' : 'VNPay'}
+                                    </p>
                                 </div>
                             </div>
-                        </div>
-                    )}
 
-                    {/* Cancellation Info for orders without refund */}
-                    {order.order_status === 'cancelled' && !order.refund_info && (
-                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                            <p className="text-sm font-medium text-gray-700 flex items-center">
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Đơn hàng đã bị hủy
-                            </p>
-                            <div className="mt-2 space-y-1">
-                                {order.cancellation_reason && (
-                                    <p className="text-sm text-gray-600">
-                                        Lý do hủy:{' '}
-                                        <span className="italic">{order.cancellation_reason}</span>
-                                    </p>
+                            <div className="flex gap-2 mt-4 w-full justify-end">
+                                {order.order_status === 'pending_payment' && (
+                                    <Button size="sm" onClick={() => handlePayment(order)} className="flex-1 sm:flex-none">
+                                        Thanh toán
+                                    </Button>
                                 )}
-                                {order.rejection_reason && order.rejected_by_shop && (
-                                    <p className="text-sm text-gray-600">
-                                        Lý do từ chối:{' '}
-                                        <span className="italic">{order.rejection_reason}</span>
-                                    </p>
+                                
+                                {canCancel && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                            setShowCancelDialog(true);
+                                            setOrderToCancel(order);
+                                            setCancelCountdown(5);
+                                            setCanCancel(false);
+                                        }}
+                                        disabled={isCancelling}
+                                    >
+                                        {isCancelling ? '...' : <XCircle className="h-4 w-4" />}
+                                    </Button>
                                 )}
-                                {order.cancelled_at && (
-                                    <p className="text-sm text-gray-600">
-                                        Thời gian hủy: {formatDate(order.cancelled_at)}
-                                    </p>
-                                )}
-                                {order.rejected_at && (
-                                    <p className="text-sm text-gray-600">
-                                        Thời gian từ chối: {formatDate(order.rejected_at)}
-                                    </p>
-                                )}
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleViewOrderDetail(order._id)}
+                                    className="flex-1 sm:flex-none"
+                                >
+                                    Xem chi tiết
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
                             </div>
                         </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex justify-end space-x-2 pt-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewOrderDetail(order._id)}
-                        >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Xem chi tiết
-                        </Button>
-                        {order.order_status === 'pending_payment' && (
-                            <Button size="sm" onClick={() => handlePayment(order)}>
-                                <CreditCard className="h-4 w-4 mr-2" />
-                                Thanh toán
-                            </Button>
-                        )}
-                        {canCancel && (
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => {
-                                    setShowCancelDialog(true);
-                                    setOrderToCancel(order);
-                                    setCancelCountdown(5);
-                                    setCanCancel(false);
-                                }}
-                                disabled={isCancelling}
-                            >
-                                {isCancelling ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                )}
-                                {isCancelling ? 'Đang hủy...' : 'Hủy đơn'}
-                            </Button>
-                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -744,295 +470,228 @@ export default function OrderHistoryPage() {
         <div className="min-h-screen bg-gray-50">
             <div className="w-full max-w-7xl mx-auto px-4 py-8">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Lịch sử đơn hàng</h1>
-                    <p className="text-gray-600">Theo dõi và quản lý các đơn hàng của bạn</p>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Lịch sử đơn hàng</h1>
+                        <p className="text-gray-500 mt-1">Quản lý và theo dõi trạng thái đơn hàng của bạn</p>
+                    </div>
+                    {/* Optional: Add Stats or Main Action here if needed */}
                 </div>
 
-                {/* Compact Filters */}
-                <div className="mb-6 flex flex-wrap items-center gap-3 p-4 bg-white rounded-lg border">
-                    {/* Search Toggle Button */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowSearchInput(!showSearchInput)}
-                        className="flex items-center gap-2"
-                    >
-                        <Search className="h-4 w-4" />
-                        Tìm kiếm
-                    </Button>
-
-                    {/* Payment Type Filter */}
-                    <Select value={paymentTypeFilter} onValueChange={setPaymentTypeFilter}>
-                        <SelectTrigger className="w-48">
-                            <SelectValue placeholder="Phương thức thanh toán" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tất cả phương thức</SelectItem>
-                            <SelectItem value="cod">COD</SelectItem>
-                            <SelectItem value="vnpay">VNPay</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {/* Date From */}
-                    <Input
-                        type="date"
-                        placeholder="Từ ngày"
-                        value={dateFrom}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                        className="w-40"
-                    />
-
-                    {/* Date To */}
-                    <Input
-                        type="date"
-                        placeholder="Đến ngày"
-                        value={dateTo}
-                        onChange={(e) => setDateTo(e.target.value)}
-                        className="w-40"
-                    />
-
-                    {/* Sort */}
-                    <div className="flex gap-1">
-                        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Sắp xếp" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {SORT_OPTIONS.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Button variant="outline" size="sm" onClick={handleSortToggle}>
-                            {sortOrder === 'asc' ? (
-                                <SortAsc className="h-4 w-4" />
-                            ) : (
-                                <SortDesc className="h-4 w-4" />
-                            )}
-                        </Button>
-                    </div>
-
-                    {/* Clear Filters */}
-                    <Button variant="outline" size="sm" onClick={clearFilters}>
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Xóa bộ lọc
-                    </Button>
-
-                    {/* Items per page */}
-                    <div className="flex items-center gap-2 ml-auto">
-                        <span className="text-sm text-gray-600">Hiển thị:</span>
-                        <Select
-                            value={itemsPerPage.toString()}
-                            onValueChange={(value) => setItemsPerPage(parseInt(value))}
-                        >
-                            <SelectTrigger className="w-16">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="5">5</SelectItem>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-
-                {/* Collapsible Search */}
-                {showSearchInput && (
-                    <div className="mb-6">
-                        <div className="relative">
+                {/* Filters & Search - Redesigned */}
+                <div className="bg-white rounded-xl border shadow-sm p-4 mb-8 space-y-4">
+                    {/* Top Row: Search & Main Filters */}
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                             <Input
-                                placeholder="Tìm kiếm theo tên, số điện thoại, email, địa chỉ hoặc mã đơn hàng..."
+                                placeholder="Tìm kiếm theo mã đơn, tên sản phẩm..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
-                                autoFocus
+                                className="pl-10 h-10"
                             />
                         </div>
-                    </div>
-                )}
+                        
+                        <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+                             <Select value={paymentTypeFilter} onValueChange={setPaymentTypeFilter}>
+                                <SelectTrigger className="w-[180px] h-10">
+                                    <SelectValue placeholder="Thanh toán" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả thanh toán</SelectItem>
+                                    <SelectItem value="cod">Thanh toán khi nhận (COD)</SelectItem>
+                                    <SelectItem value="vnpay">VNPay</SelectItem>
+                                </SelectContent>
+                            </Select>
 
-                {/* Tabs */}
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                    <div className="relative">
-                        <TabsList className="grid w-full grid-cols-6 mb-6 h-16 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-2 relative overflow-hidden">
-                            {/* Sliding Background Indicator */}
-                            <div
-                                className={`absolute top-2 bottom-2 bg-gradient-to-r ${
-                                    tabColors[activeTab as keyof typeof tabColors]
-                                } rounded-lg transition-all duration-500 ease-in-out shadow-lg z-0`}
-                                style={{
-                                    left: indicatorStyle.left,
-                                    width: indicatorStyle.width,
-                                    transform: 'translateX(0)'
-                                }}
+                             <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                                <SelectTrigger className="w-[160px] h-10">
+                                    <SelectValue placeholder="Sắp xếp" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {SORT_OPTIONS.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            
+                            <Button 
+                                variant="outline" 
+                                size="icon" 
+                                onClick={handleSortToggle}
+                                className="h-10 w-10 shrink-0"
+                                title={sortOrder === 'asc' ? 'Tăng dần' : 'Giảm dần'}
+                            >
+                                {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Secondary Row: Date Range & Clear */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span className="hidden sm:inline">Thời gian:</span>
+                            <Input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => setDateFrom(e.target.value)}
+                                className="w-auto h-9 text-xs"
                             />
+                            <span>-</span>
+                            <Input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => setDateTo(e.target.value)}
+                                className="w-auto h-9 text-xs"
+                            />
+                        </div>
 
-                            <TabsTrigger
-                                value="pending_payment"
-                                className="flex items-center space-x-2 h-12 text-base font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg relative z-10 data-[state=active]:bg-transparent"
+                        <div className="flex items-center gap-2 ml-auto">
+                            {(searchTerm || paymentTypeFilter !== 'all' || dateFrom || dateTo) && (
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={clearFilters}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8"
+                                >
+                                    <RefreshCw className="h-3 w-3 mr-1" />
+                                    Xóa bộ lọc
+                                </Button>
+                            )}
+                            
+                             <Select
+                                value={itemsPerPage.toString()}
+                                onValueChange={(value) => setItemsPerPage(parseInt(value))}
                             >
-                                <CreditCard className="h-5 w-5" />
-                                <span>Chờ thanh toán</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="pending"
-                                className="flex items-center space-x-2 h-12 text-base font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg relative z-10 data-[state=active]:bg-transparent"
-                            >
-                                <Clock className="h-5 w-5" />
-                                <span>Chờ xử lý</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="delivering"
-                                className="flex items-center space-x-2 h-12 text-base font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg relative z-10 data-[state=active]:bg-transparent"
-                            >
-                                <Truck className="h-5 w-5" />
-                                <span>Đang giao</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="success"
-                                className="flex items-center space-x-2 h-12 text-base font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg relative z-10 data-[state=active]:bg-transparent"
-                            >
-                                <CheckCircle className="h-5 w-5" />
-                                <span>Đã thanh toán</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="completed"
-                                className="flex items-center space-x-2 h-12 text-base font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg relative z-10 data-[state=active]:bg-transparent"
-                            >
-                                <CheckCircle className="h-5 w-5" />
-                                <span>Hoàn thành</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="cancelled"
-                                className="flex items-center space-x-2 h-12 text-base font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg relative z-10 data-[state=active]:bg-transparent"
-                            >
-                                <XCircle className="h-5 w-5" />
-                                <span>Đã hủy</span>
-                            </TabsTrigger>
-                        </TabsList>
+                                <SelectTrigger className="w-[70px] h-8 text-xs border-none shadow-none bg-gray-50">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5 / trang</SelectItem>
+                                    <SelectItem value="10">10 / trang</SelectItem>
+                                    <SelectItem value="20">20 / trang</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
+                </div>
 
-                    {/* Tab Contents */}
-                    {[
-                        'pending_payment',
-                        'pending',
-                        'delivering',
-                        'success',
-                        'completed',
-                        'cancelled'
-                    ].map((status) => (
-                        <TabsContent
-                            key={status}
-                            value={status}
-                            className="mt-6 transition-all duration-500 ease-in-out transform"
-                        >
-                            {loading ? (
-                                <div className="flex justify-center items-center py-12">
-                                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                                    <span className="ml-2 text-gray-600">Đang tải đơn hàng...</span>
+                {/* Tabs & Order List */}
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+                    <TabsList className="bg-transparent p-0 w-full overflow-x-auto flex justify-start border-b border-gray-200 h-auto gap-4 md:gap-8">
+                        {Object.entries(ORDER_STATUS_MAP).map(([key, info]) => {
+                            const isActive = activeTab === key;
+                            return (
+                                <TabsTrigger
+                                    key={key}
+                                    value={key}
+                                    className={`
+                                        rounded-none border-b-2 border-transparent px-2 pb-3 pt-2 font-medium text-gray-500 hover:text-gray-700
+                                        data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none
+                                        transition-colors duration-200
+                                    `}
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <info.icon className="h-4 w-4" />
+                                        <span className="whitespace-nowrap">{info.label}</span>
+                                    </span>
+                                </TabsTrigger>
+                            );
+                        })}
+                    </TabsList>
+
+                    {Object.keys(ORDER_STATUS_MAP).map((status) => (
+                        <TabsContent key={status} value={status} className="m-0 focus-visible:outline-none focus-visible:ring-0">
+                             {loading ? (
+                                <div className="flex flex-col justify-center items-center py-20 bg-white rounded-lg border border-dashed">
+                                    <Loader2 className="h-10 w-10 animate-spin text-blue-600 mb-4" />
+                                    <span className="text-gray-500 font-medium">Đang tải đơn hàng...</span>
                                 </div>
                             ) : orders.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                        Không có đơn hàng nào
+                                <div className="text-center py-20 bg-white rounded-lg border border-dashed">
+                                    <div className="bg-gray-50 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <Package className="h-10 w-10 text-gray-400" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                        Chưa có đơn hàng nào
                                     </h3>
-                                    <p className="text-gray-500 mb-6">
-                                        {`Không có đơn hàng nào ở trạng thái "${
+                                    <p className="text-gray-500 max-w-sm mx-auto mb-8">
+                                        {`Bạn chưa có đơn hàng nào trong trạng thái "${
                                             getOrderStatusInfo(status).label
-                                        }"`}
+                                        }". Hãy khám phá thêm các sản phẩm khác nhé!`}
                                     </p>
-                                    <Button onClick={() => router.push('/products')}>
+                                    <Button onClick={() => router.push('/products')} className="px-8">
                                         <ShoppingBag className="h-4 w-4 mr-2" />
-                                        Bắt đầu mua sắm
+                                        Mua sắm ngay
                                     </Button>
                                 </div>
                             ) : (
-                                <>
-                                    <div className="space-y-4">{orders.map(renderOrderCard)}</div>
+                                <div className="space-y-6">
+                                    <div className="space-y-4">
+                                        {orders.map(renderOrderCard)}
+                                    </div>
 
                                     {/* Pagination */}
                                     {pagination && pagination.totalPages > 1 && (
-                                        <div className="flex items-center justify-between mt-8">
-                                            <div className="text-sm text-gray-600">
-                                                Hiển thị{' '}
-                                                {(pagination.currentPage - 1) * pagination.limit +
-                                                    1}{' '}
-                                                -{' '}
-                                                {Math.min(
-                                                    pagination.currentPage * pagination.limit,
-                                                    pagination.totalCount
-                                                )}{' '}
-                                                trong tổng số {pagination.totalCount} đơn hàng
+                                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+                                            <div className="text-sm text-gray-500 order-2 sm:order-1">
+                                                Hiển thị <span className="font-medium text-gray-900">{(pagination.currentPage - 1) * pagination.limit + 1}</span> - <span className="font-medium text-gray-900">{Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)}</span> trong tổng số <span className="font-medium text-gray-900">{pagination.totalCount}</span> đơn hàng
                                             </div>
-                                            <div className="flex items-center space-x-2">
+                                            
+                                            <div className="flex items-center gap-1 order-1 sm:order-2">
                                                 <Button
                                                     variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handlePageChange(pagination.currentPage - 1)
-                                                    }
+                                                    size="icon"
+                                                    onClick={() => handlePageChange(pagination.currentPage - 1)}
                                                     disabled={!pagination.hasPrevPage}
+                                                    className="h-9 w-9"
                                                 >
                                                     <ChevronLeft className="h-4 w-4" />
-                                                    Trước
                                                 </Button>
 
-                                                {/* Page Numbers */}
-                                                {Array.from(
-                                                    { length: Math.min(5, pagination.totalPages) },
-                                                    (_, i) => {
-                                                        const pageNum = Math.max(
-                                                            1,
-                                                            Math.min(
-                                                                pagination.currentPage - 2 + i,
-                                                                pagination.totalPages - 4 + i
-                                                            )
-                                                        );
-                                                        if (pageNum <= pagination.totalPages) {
-                                                            return (
-                                                                <Button
-                                                                    key={pageNum}
-                                                                    variant={
-                                                                        pageNum ===
-                                                                        pagination.currentPage
-                                                                            ? 'default'
-                                                                            : 'outline'
-                                                                    }
-                                                                    size="sm"
-                                                                    onClick={() =>
-                                                                        handlePageChange(pageNum)
-                                                                    }
-                                                                >
-                                                                    {pageNum}
-                                                                </Button>
-                                                            );
+                                                <div className="flex items-center gap-1">
+                                                    {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                                                        // Smart pagination logic to show relevant pages
+                                                        let pageNum = pagination.currentPage;
+                                                        if (pagination.totalPages <= 5) {
+                                                            pageNum = i + 1;
+                                                        } else if (pagination.currentPage <= 3) {
+                                                            pageNum = i + 1;
+                                                        } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                                                            pageNum = pagination.totalPages - 4 + i;
+                                                        } else {
+                                                            pageNum = pagination.currentPage - 2 + i;
                                                         }
-                                                        return null;
-                                                    }
-                                                )}
+
+                                                        return (
+                                                            <Button
+                                                                key={pageNum}
+                                                                variant={pageNum === pagination.currentPage ? 'default' : 'ghost'}
+                                                                size="sm"
+                                                                onClick={() => handlePageChange(pageNum)}
+                                                                className={`h-9 w-9 font-normal ${pageNum === pagination.currentPage ? 'pointer-events-none' : ''}`}
+                                                            >
+                                                                {pageNum}
+                                                            </Button>
+                                                        );
+                                                    })}
+                                                </div>
 
                                                 <Button
                                                     variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handlePageChange(pagination.currentPage + 1)
-                                                    }
+                                                    size="icon"
+                                                    onClick={() => handlePageChange(pagination.currentPage + 1)}
                                                     disabled={!pagination.hasNextPage}
+                                                    className="h-9 w-9"
                                                 >
-                                                    Sau
                                                     <ChevronRight className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </div>
                                     )}
-                                </>
+                                </div>
                             )}
                         </TabsContent>
                     ))}
