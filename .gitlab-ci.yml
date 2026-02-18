@@ -7,10 +7,10 @@ deploy_client_customer:
     - shell
   script:
     # 1. Install dependencies
-    - /root/.bun/bin/bun install
+    - bun install
 
     # 2. Build application
-    - /root/.bun/bin/bun run build
+    - bun run build
 
     # 3. Prepare directory
     - mkdir -p /opt/apps/aliconcon-ecommerce/client-customer
