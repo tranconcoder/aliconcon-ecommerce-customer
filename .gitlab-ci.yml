@@ -8,6 +8,9 @@ deploy_client_customer:
   variables:
     DEPLOY_PATH: "/opt/apps/aliconcon-ecommerce_client-customer"
 
+  before_script:
+    - source /home/gitlab-runner/.bashrc
+
   script:
     # 1. Install dependencies
     - bun install
