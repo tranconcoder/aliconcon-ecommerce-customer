@@ -1,0 +1,29 @@
+stages:
+  - build_and_deploy
+
+deploy_client_customer:
+  stage: build_and_deploy
+  tags:
+    - shell
+  script:
+    # 1. Install dependencies
+    - bun install
+
+    # 2. Build application
+    - bun run build
+
+    # 3. Prepare directory
+    - mkdir -p /opt/apps/aliconcon-ecommerce/client-customer
+
+    # 4. Deploy Standalone Artifacts (Local Copy)
+    - rsync -av --delete .next/standalone/ /opt/apps/aliconcon-ecommerce/client-customer/
+    - rsync -av .next/static/ /opt/apps/aliconcon-ecommerce/client-customer/.next/static/
+    - rsync -av public/ /opt/apps/aliconcon-ecommerce/client-customer/public/
+
+    # 5. Restart PM2
+    - cd /opt/apps/aliconcon-ecommerce/client-customer
+    - pm2 restart client-customer || pm2 start server.js --name client-customer
+
+  only:
+    - main
+    - master
