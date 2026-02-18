@@ -27,10 +27,11 @@ deploy_client_customer:
     - rsync -rlptDv --delete .next/standalone/ $DEPLOY_PATH/
     - rsync -rlptDv .next/static/ $DEPLOY_PATH/.next/static/
     - rsync -rlptDv public/ $DEPLOY_PATH/public/
+    - rsync -rlptDv ecosystem.config.cjs $DEPLOY_PATH/
 
     # 5. Restart PM2
     - cd $DEPLOY_PATH
-    - pm2 restart client-customer || pm2 start server.js --name client-customer
+    - pm2 startOrRestart ecosystem.config.cjs
 
   only:
     - main
