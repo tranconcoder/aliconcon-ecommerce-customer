@@ -11,27 +11,26 @@ deploy_client_customer:
     - source /home/gitlab-runner/.bashrc
 
   script:
-    - echo "🚀 Starting deployment script..."
+    - echo "Starting deployment script..."
     - pwd
     - ls -la
 
     # 1. Install dependencies
-    - echo "📦 Installing dependencies..."
+    - echo "Installing dependencies..."
     - bun install
 
     # 2. Build application
-    - echo "🔨 Building application..."
+    - echo "Building application..."
     - bun run build
-    - echo "📂 Checking build output..."
-    # Quoting carefully to avoid issues with specialized characters
-    - 'ls -la .next/standalone || echo "❌ Error: .next/standalone not found!"'
+    - echo "Checking build output..."
+    - 'ls -la .next/standalone || echo "Error: .next/standalone not found!"'
 
     # 3. Prepare directory
-    - echo "📂 Preparing deployment directory: $DEPLOY_PATH"
+    - echo "Preparing deployment directory: $DEPLOY_PATH"
     - mkdir -p $DEPLOY_PATH
 
     # 4. Deploy Standalone Artifacts (Local Copy)
-    - echo "🚚 Syncing files to deployment directory..."
+    - echo "Syncing files to deployment directory..."
     # Copy standalone build
     - rsync -rlptDv --delete .next/standalone/ $DEPLOY_PATH/
     # Copy static files (standalone doesn't include them by default)
@@ -41,7 +40,7 @@ deploy_client_customer:
     - rsync -rlptDv ecosystem.config.cjs $DEPLOY_PATH/
 
     # 5. Restart PM2
-    - echo "🔄 Restarting PM2 process..."
+    - echo "Restarting PM2 process..."
     - cd $DEPLOY_PATH
     - pm2 startOrRestart ecosystem.config.cjs
 
