@@ -12,24 +12,33 @@ deploy_client_customer:
     - source /home/gitlab-runner/.bashrc
 
   script:
+    - echo "🚀 Starting deployment script..."
+    - pwd
+    - ls -la
+
     # 1. Install dependencies
+    - echo "📦 Installing dependencies..."
     - bun install
 
     # 2. Build application
+    - echo "🔨 Building application..."
     - bun run build
+    - echo "📂 Checking build output..."
+    - ls -la .next/standalone || echo "❌ .next/standalone not found!"
 
     # 3. Prepare directory
+    - echo "📂 Preparing deployment directory: $DEPLOY_PATH"
     - mkdir -p $DEPLOY_PATH
 
     # 4. Deploy Standalone Artifacts (Local Copy)
-    # Use -rlptDv to copy recursion, links, perms, times, devices, verbose. 
-    # Skip -o (owner) and -g (group) to avoid permission errors if runner is different user.
+    - echo "🚚 Syncing files to deployment directory..."
     - rsync -rlptDv --delete .next/standalone/ $DEPLOY_PATH/
     - rsync -rlptDv .next/static/ $DEPLOY_PATH/.next/static/
     - rsync -rlptDv public/ $DEPLOY_PATH/public/
     - rsync -rlptDv ecosystem.config.cjs $DEPLOY_PATH/
 
     # 5. Restart PM2
+    - echo "🔄 Restarting PM2 process..."
     - cd $DEPLOY_PATH
     - pm2 startOrRestart ecosystem.config.cjs
 
