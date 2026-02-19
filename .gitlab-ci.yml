@@ -23,7 +23,7 @@ deploy_client_customer:
     - echo "Building application..."
     - bun run build
     - echo "Checking build output..."
-    - 'ls -la .next/standalone || echo "Error: .next/standalone not found!"'
+    - ls -la .next/standalone || echo "Error: .next/standalone not found!"
 
     # 3. Prepare directory
     - echo "Preparing deployment directory: $DEPLOY_PATH"
