@@ -15,8 +15,6 @@ deploy_client_customer:
 
   script:
     - echo "🚀 Starting deployment script..."
-    - pwd
-    - ls -la
 
     # 1. Install dependencies
     - echo "📦 Installing dependencies..."
