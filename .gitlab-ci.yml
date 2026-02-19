@@ -20,6 +20,31 @@ deploy_client_customer:
     - echo "📦 Installing dependencies..."
     - bun install
 
+    # 2. Build application
+    - echo "🔨 Building application..."
+    - bun run build
+    - echo "📂 Checking build output..."
+    - 'ls -la .next/standalone || echo "❌ Error: .next/standalone not found!"'
+
+    # # 3. Prepare directory
+    # - echo "📂 Preparing deployment directory: $DEPLOY_PATH"
+    # - mkdir -p $DEPLOY_PATH
+
+    # # 4. Deploy Standalone Artifacts (Local Copy)
+    # - echo "🚚 Syncing files to deployment directory..."
+    # # Copy standalone build
+    # - rsync -rlptDv --delete .next/standalone/ $DEPLOY_PATH/
+    # # Copy static files (standalone doesn't include them by default)
+    # - rsync -rlptDv .next/static/ $DEPLOY_PATH/.next/static/
+    # - rsync -rlptDv public/ $DEPLOY_PATH/public/
+    # # Copy ecosystem config
+    # - rsync -rlptDv ecosystem.config.cjs $DEPLOY_PATH/
+
+    # # 5. Restart PM2
+    # - echo "🔄 Restarting PM2 process..."
+    # - cd $DEPLOY_PATH
+    # - pm2 startOrRestart ecosystem.config.cjs
+
   only:
     - main
     - master
