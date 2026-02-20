@@ -8,7 +8,7 @@ stages:
   - build_and_deploy
 
 variables:
-  GITHUB_REPO: "aliconcon-ecommerce"
+  GITHUB_REPO: "aliconcon-ecommerce-customer"
 
 deploy_client_customer:
   stage: build_and_deploy
