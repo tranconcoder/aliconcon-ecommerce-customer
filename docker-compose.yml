@@ -1,12 +1,13 @@
 services:
   aliconcon-client-customer:
+    image: ${IMAGE_NAME:-aliconcon-client-customer}
+    container_name: ${CONTAINER_NAME:-aliconcon-client-customer}
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-        - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
-    container_name: aliconcon-client-customer
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
     restart: unless-stopped
     ports:
       - "${APP_PORT:-3007}:3000"
