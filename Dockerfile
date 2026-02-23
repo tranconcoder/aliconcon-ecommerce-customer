@@ -11,6 +11,10 @@ RUN bun install --frozen-lockfile
 
 # Copy source and build
 COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max_old_space_size=1024"
+
 RUN bun run build
 
 # ---------------------------------------------------------------------------- #
