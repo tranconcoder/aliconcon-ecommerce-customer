@@ -18,7 +18,7 @@ deploy_client_customer:
     DOCKER_HOST: unix:///var/run/docker.sock
     CONTAINER_NAME: "aliconcon-client-customer"
     IMAGE_NAME: "aliconcon-client-customer"
-    APP_PORT: "3000"
+    APP_PORT: 3007
   before_script:
     - docker info
 
@@ -28,11 +28,11 @@ deploy_client_customer:
     - docker build -t $IMAGE_NAME .
 
     # 2. Stop and remove existing container if exists
-    - echo "� Removing old container..."
+    - echo "🛑 Removing old container..."
     - docker rm -f $CONTAINER_NAME || true
 
     # 3. Run new container with restart policy
-    - echo "� Starting container..."
+    - echo "🚀 Starting container..."
     - docker run -d
       --name $CONTAINER_NAME
       --restart unless-stopped
