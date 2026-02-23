@@ -12,6 +12,14 @@ RUN bun install --frozen-lockfile
 # Copy source and build
 COPY . .
 
+# Build arguments for environment variables
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+
+# Set environment variables for build
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max_old_space_size=1024"
 
