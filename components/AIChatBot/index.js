@@ -21,14 +21,17 @@ function AIChatBot() {
     const reconnectTimeoutRef = useRef(null);
 
     // WebSocket configuration
-    let WS_URL = process.env.NEXT_PUBLIC_WS_URL;
+    let WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/chat';
 
-    if (!WS_URL) {
-        console.error('❌ NEXT_PUBLIC_WS_URL is not set!');
-        return <div>NEXT_PUBLIC_WS_URL is not set</div>;
+    // Normalize URL: convert http/https to ws/wss and ensure it ends with /chat if not present
+    if (WS_URL.startsWith('http')) {
+        WS_URL = WS_URL.replace(/^http/, 'ws');
     }
 
-    WS_URL = WS_URL.replace('ws://', 'wss://');
+    // Ensure path /chat is included if not in the URL
+    if (!WS_URL.includes('/chat')) {
+        WS_URL = WS_URL.endsWith('/') ? WS_URL + 'chat' : WS_URL + '/chat';
+    }
 
     const RECONNECT_INTERVAL = 3000; // 3 seconds
 
@@ -145,7 +148,7 @@ function AIChatBot() {
             setConnectionStatus('Đang kết nối...');
             setIsProfileInitialized(false);
             console.log('🔌 Attempting to connect to WebSocket:', WS_URL);
-            wsRef.current = new WebSocket("wss://localhost:8001/chat");
+            wsRef.current = new WebSocket(WS_URL);
 
             wsRef.current.onopen = () => {
                 console.log('🔌 Connected to AI Assistant WebSocket');
