@@ -5,7 +5,7 @@ import StoreProvider from '@/lib/store/StoreProvider';
 import Header from '@/components/common/Header';
 import { Toaster } from '@/components/ui/toaster';
 import { Init } from '@/components/common/Init';
-import AIChatBot from '@/components/AIChatBot';
+import { GlobalChatManager } from '@/components/chat/GlobalChatManager';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -29,8 +29,8 @@ export default function RootLayout({
 
                     {children}
 
-                    {/* AI ChatBot - Global floating chat bubble */}
-                    <AIChatBot />
+                    {/* Unified Floating Chat Manager for AI & Shops */}
+                    <GlobalChatManager />
                 </StoreProvider>
             </body>
         </html>

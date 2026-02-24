@@ -29,10 +29,10 @@ import {
     DiscountCardCompactSkeleton
 } from '@/components/ui/DiscountCardCompact';
 import { DiscountDialog } from '@/components/ui/DiscountDialog';
-import { FloatingChat, ChatButton, FloatingChatButton } from '@/components/ui/FloatingChat';
+import { ChatButton } from '@/components/ui/ChatButton';
 import { CustomImage } from '@/components/ui/CustomImage';
 import { cn } from '@/lib/utils';
-import { useAppSelector } from '@/lib/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { useToast } from '@/hooks/use-toast';
 import ShopReviews from '@/components/shop/ShopReviews';
 
@@ -48,6 +48,7 @@ const ShopProfilePage = () => {
         accessToken: state.user.accessToken,
         isAuthenticated: state.user.isAuthenticated
     }));
+    const dispatch = useAppDispatch();
 
     const [shop, setShop] = useState<Shop | null>(null);
     const [loadingShop, setLoadingShop] = useState(true);
@@ -68,10 +69,6 @@ const ShopProfilePage = () => {
     const [selectedDiscount, setSelectedDiscount] = useState<Discount | null>(null);
     const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
     const [savedDiscountIds, setSavedDiscountIds] = useState<string[]>([]);
-
-    // Chat state
-    const [isChatOpen, setIsChatOpen] = useState(false);
-    const [isChatMinimized, setIsChatMinimized] = useState(false);
 
     useEffect(() => {
         if (shopId) {
@@ -176,17 +173,22 @@ const ShopProfilePage = () => {
             router.push('/auth/login');
             return;
         }
-        setIsChatOpen(true);
-        setIsChatMinimized(false);
-    };
-
-    const handleChatClose = () => {
-        setIsChatOpen(false);
-        setIsChatMinimized(false);
-    };
-
-    const handleChatToggleMinimize = () => {
-        setIsChatMinimized(!isChatMinimized);
+        if (shop) {
+            import('@/lib/store/slices/chatSlice').then(({ openChat }) => {
+                dispatch(
+                    openChat({
+                        id: shop._id,
+                        type: 'shop',
+                        shopData: {
+                            _id: shop._id,
+                            shop_name: shop.shop_name,
+                            shop_logo: shop.shop_logo,
+                            shop_userId: shop.shop_userId
+                        }
+                    })
+                );
+            });
+        }
     };
 
     const handleDiscountClick = (discount: Discount) => {
@@ -563,32 +565,7 @@ const ShopProfilePage = () => {
                 </div>
             </div>
 
-            {/* Floating Chat Component */}
-            {shop && isAuthenticated && user && accessToken && (
-                <FloatingChat
-                    shop={{
-                        _id: shop._id,
-                        shop_name: shop.shop_name,
-                        shop_logo: shop.shop_logo,
-                        shop_userId: shop.shop_userId
-                    }}
-                    isOpen={isChatOpen}
-                    onClose={handleChatClose}
-                    onToggleMinimize={handleChatToggleMinimize}
-                    isMinimized={isChatMinimized}
-                    currentUserId={user._id}
-                    userToken={accessToken}
-                />
-            )}
-
-            {/* Floating Action Button */}
-            {shop && (
-                <FloatingChatButton
-                    onClick={handleChatOpen}
-                    isOpen={isChatOpen}
-                    hasUnread={false}
-                />
-            )}
+            {/* Floating chat is now handled globally by GlobalChatManager */}
 
             {/* Discount Detail Dialog */}
             <DiscountDialog
