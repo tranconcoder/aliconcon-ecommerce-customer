@@ -15,12 +15,13 @@ interface ShopInfoProps {
 }
 
 export default function ShopInfo({ shopId, shop, loading }: ShopInfoProps) {
-  if (!shopId) return null;
+  const displayShopId = shopId || shop?._id || shop?.shop_userId;
+  if (!displayShopId) return null;
 
   return (
     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
       <p className="text-xs text-gray-500 mb-1.5">Sold and Shipped by:</p>
-      <Link href={`/shop/${shopId}`} className="flex items-center gap-3 group p-1 -m-1 rounded-md hover:bg-gray-50 transition-colors">
+      <Link href={`/shop/${displayShopId}`} className="flex items-center gap-3 group p-1 -m-1 rounded-md hover:bg-gray-50 transition-colors">
         <div className="relative w-10 h-10 rounded-full overflow-hidden border bg-gray-100 flex items-center justify-center">
           {loading ? (
             <Skeleton className="w-10 h-10 rounded-full" />
@@ -68,7 +69,7 @@ export default function ShopInfo({ shopId, shop, loading }: ShopInfoProps) {
           ) : (
             <div>
               <span className="text-md font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
-                Shop ID: {shopId}
+                Shop ID: {displayShopId}
               </span>
               <p className="text-xs text-gray-500">View Store</p>
             </div>

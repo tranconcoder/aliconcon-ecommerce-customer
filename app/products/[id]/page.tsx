@@ -341,18 +341,23 @@ export default function ProductDetailPage() {
                     setSelectedVariations({});
 
                     // Fetch shop information
-                    if (productData?.spu_select?.product_shop) {
+                    const shopIdToFetch = productData?.spu_select?.product_shop || productData?.shop?._id;
+                    if (shopIdToFetch) {
                         setLoadingShop(true);
                         try {
-                            const shopData = await shopService.getShopById(
-                                productData.spu_select.product_shop
-                            );
+                            const shopData = await shopService.getShopById(shopIdToFetch);
                             setShop(shopData);
                         } catch (shopError) {
                             console.error('Error fetching shop data:', shopError);
+                            // Fallback to embedded basic shop data if the fetch fails
+                            if (productData?.shop) {
+                                setShop(productData.shop as Shop);
+                            }
                         } finally {
                             setLoadingShop(false);
                         }
+                    } else if (productData?.shop) {
+                        setShop(productData.shop as Shop);
                     }
 
                     // Fetch related products
@@ -510,7 +515,7 @@ export default function ProductDetailPage() {
                         {/* Shop Info */}
                         {shop && (
                             <div className="p-6">
-                                <ShopInfo shop={shop} loading={loadingShop} />
+                                <ShopInfo shopId={shop._id} shop={shop} loading={loadingShop} />
                             </div>
                         )}
 
